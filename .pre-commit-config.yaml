@@ -1,0 +1,11 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-yaml           # Проверяет синтаксис YAML файлов
+      - id: end-of-file-fixer    # Убеждается, что файлы заканчиваются пустой строкой
+      - id: trailing-whitespace  # Удаляет лишние пробелы в конце строк
+        exclude: '\.md$'
+      - id: check-added-large-files # Предотвращает коммит больших файлов (например, .env или БД)
+      - id: detect-private-key
+      - id: no-commit-to-branch
