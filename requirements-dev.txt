@@ -5,7 +5,3 @@ pre-commit
 ruff==0.15.1
 
 mypy==1.19.1
-
-mypy-extensions==1.1.0
-
-types-python-jose==3.5.0.20250531
