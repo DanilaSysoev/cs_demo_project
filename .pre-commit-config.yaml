@@ -9,3 +9,23 @@ repos:
       - id: check-added-large-files # Предотвращает коммит больших файлов (например, .env или БД)
       - id: detect-private-key
       - id: no-commit-to-branch
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.1
+    hooks:
+      # Запускаем как линтер
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix] # Автоматически исправляет что может
+        types: [python]
+      # Запускаем для форматирования импортов
+      - id: ruff-format
+        types: [python]
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.19.1
+    hooks:
+      - id: mypy
+        args: [., --config-file=pyproject.toml]
+        pass_filenames: false
+        additional_dependencies: [
+        ]
