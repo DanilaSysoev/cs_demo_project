@@ -28,4 +28,6 @@ repos:
         args: [., --config-file=pyproject.toml]
         pass_filenames: false
         additional_dependencies: [
+          "pydantic==2.10.4",
+          "fastapi==0.135.1",
         ]

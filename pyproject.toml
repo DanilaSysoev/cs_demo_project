@@ -18,3 +18,4 @@ warn_redundant_casts = true
 warn_return_any = true
 no_implicit_optional = true
 exclude = '(migrations/|tests/|\.venv/)'
+plugins = ['pydantic.mypy']
