@@ -19,3 +19,8 @@ warn_return_any = true
 no_implicit_optional = true
 exclude = '(migrations/|tests/|\.venv/)'
 plugins = ['pydantic.mypy']
+
+[tool.pydantic-mypy]
+init_forbid_extra = true
+init_typed = true
+warn_required_dynamic_aliases = true
