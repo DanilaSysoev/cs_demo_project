@@ -1,9 +1,12 @@
 import os
+import shutil
+import uuid
 from typing import Annotated, Any
 
 import bleach
+import filetype  # type: ignore
 from dotenv import load_dotenv  # type: ignore
-from fastapi import Depends, FastAPI, Request, Response
+from fastapi import Depends, FastAPI, Request, Response, UploadFile
 from fastapi.exceptions import HTTPException
 from fastapi.templating import Jinja2Templates
 from starlette import status
@@ -111,6 +114,7 @@ def index_unsafe(request: Request, name: str = "Guest") -> Any:
     csp = "default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:;"
 
     return templates.TemplateResponse(
+        request,
         "index.html",
         {"request": request, "name": name},
         headers={"Content-Security-Policy": csp},
@@ -172,3 +176,78 @@ def get_file_safe(
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
         )
+
+
+file_database: list[Any] = []
+
+
+@app.post("/upload")
+def upload_file(request: Request, file: UploadFile) -> Any:
+    name = uuid.uuid4()
+    with open(f"uploads/{name}", "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    file_database.append(
+        {"id": len(file_database) + 1, "name": name, "src_name": file.filename}
+    )
+    return {"message": "File uploaded successfully"}
+
+
+@app.post("/upload-jpg")
+def upload_jpg(request: Request, file: UploadFile) -> Any:
+    if (
+        file.filename
+        and not file.filename.lower().endswith(".jpg")
+        and not file.filename.lower().endswith(".jpeg")
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only .jpg files are allowed",
+        )
+
+    head = file.file.read(128)
+    kind = filetype.guess(head)
+    if kind is None or kind.mime not in ["image/jpeg"]:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Uploaded file is not a valid JPEG image",
+        )
+
+    name = uuid.uuid4()
+    with open(f"uploads/{name}", "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    file_database.append(
+        {"id": len(file_database) + 1, "name": name, "src_name": file.filename}
+    )
+    return {"message": "File uploaded successfully"}
+
+
+@app.post("/upload-big-file")
+def upload_big_file(request: Request, file: UploadFile) -> Any:
+    limit = 1024 * 1024 * 1024  # 1GB
+    # if file.size > limit:
+    #     raise HTTPException(
+    #         status_code=status.HTTP_400_BAD_REQUEST,
+    #         detail="File size exceeds the 1GB limit",
+    #     )
+
+    cur_size = 0
+    chunk_size = 1024  # 1KB
+    name = uuid.uuid4()
+    with open(f"uploads/{name}", "wb") as f:
+        while True:
+            chunk = file.file.read(chunk_size)
+            if not chunk:
+                break
+            cur_size += len(chunk)
+            if cur_size > limit:
+                os.remove(f"uploads/{name}")
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="File size exceeds the 1GB limit",
+                )
+            f.write(chunk)
+
+    file_database.append(
+        {"id": len(file_database) + 1, "name": name, "src_name": file.filename}
+    )
+    return {"message": "File uploaded successfully"}
