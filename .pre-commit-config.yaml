@@ -33,6 +33,7 @@ repos:
           "jinja2==3.1.6",
           "bleach==6.3.0",
           "types-bleach==6.3.0.20251115",
+          "filetype==1.0.7",
         ]
 
   - repo: https://github.com/pypa/pip-audit

@@ -4,3 +4,4 @@ venv/
 .vs/
 .vscode/
 __pycache__/
+uploads/
