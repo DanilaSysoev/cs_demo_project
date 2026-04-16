@@ -3,11 +3,9 @@ python-dotenv==1.2.2
 fastapi==0.135.1
 uvicorn==0.41.0
 pydantic==2.10.4
-
 jinja2==3.1.6
-
 bleach==6.3.0
-
 starlette[full]==1.0.0
-
 filetype==1.0.7
+cryptography==46.0.7
+aiofiles==25.1.0

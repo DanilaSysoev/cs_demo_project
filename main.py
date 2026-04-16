@@ -1,13 +1,15 @@
 import os
-import shutil
 import uuid
+from io import BytesIO
 from typing import Annotated, Any
 
 import bleach
 import filetype  # type: ignore
+from cryptography.fernet import Fernet
 from dotenv import load_dotenv  # type: ignore
 from fastapi import Depends, FastAPI, Request, Response, UploadFile
 from fastapi.exceptions import HTTPException
+from fastapi.responses import StreamingResponse
 from fastapi.templating import Jinja2Templates
 from starlette import status
 from starlette.middleware.sessions import SessionMiddleware
@@ -40,12 +42,16 @@ files = [
         "local_name": "file1.txt",
         "src_name": "file1.txt",
         "owner": "Danila",
+        "mime": "plain/text",
+        "is_secret": False,
     },
     {
         "id": 2,
         "local_name": "file2.txt",
         "src_name": "file2.txt",
         "owner": "Alice",
+        "mime": "plain/text",
+        "is_secret": False,
     },
 ]
 
@@ -121,28 +127,6 @@ def index_unsafe(request: Request, name: str = "Guest") -> Any:
     )
 
 
-@app.get("/files/{file_id}")
-def get_file(request: Request, file_id: int) -> Any:
-    user = next(
-        (
-            u
-            for u in users
-            if u["username"] == request.session.get("name", None)
-        ),
-        None,
-    )
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized"
-        )
-    file = next((f for f in files if f["id"] == file_id), None)
-    if file is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
-        )
-    return {"file": file}
-
-
 def current_user(request: Request) -> dict | None:
     return next(
         (
@@ -154,7 +138,7 @@ def current_user(request: Request) -> dict | None:
     )
 
 
-@app.get("/file-safe/{file_id}")
+@app.get("/file/{file_id}")
 def get_file_safe(
     request: Request,
     file_id: int,
@@ -171,29 +155,27 @@ def get_file_safe(
         )
 
     if user["role"] == "admin" or file["owner"] == user["username"]:
-        return {"file": file}
+        with open(f"uploads/{file['name']}", "rb") as f:
+            data = f.read()
+            if file["is_secret"]:
+                data = Fernet(os.getenv("FERNET_KEY", "").encode()).decrypt(
+                    data
+                )
+            return StreamingResponse(
+                content=BytesIO(data),
+                status_code=status.HTTP_200_OK,
+                headers={
+                    "Content-Disposition": f"attachment; filename={file['src_name']}"
+                },
+                media_type=str(file["mime"]),
+            )
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden"
         )
 
 
-file_database: list[Any] = []
-
-
-@app.post("/upload")
-def upload_file(request: Request, file: UploadFile) -> Any:
-    name = uuid.uuid4()
-    with open(f"uploads/{name}", "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    file_database.append(
-        {"id": len(file_database) + 1, "name": name, "src_name": file.filename}
-    )
-    return {"message": "File uploaded successfully"}
-
-
-@app.post("/upload-jpg")
-def upload_jpg(request: Request, file: UploadFile) -> Any:
+def get_mime_of_file(file: UploadFile) -> str:
     if (
         file.filename
         and not file.filename.lower().endswith(".jpg")
@@ -201,53 +183,58 @@ def upload_jpg(request: Request, file: UploadFile) -> Any:
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only .jpg files are allowed",
+            detail="Only .jpg or .pdf files are allowed",
         )
 
     head = file.file.read(128)
+    file.file.seek(0)
     kind = filetype.guess(head)
-    if kind is None or kind.mime not in ["image/jpeg"]:
+    if kind is None or kind.mime not in ["image/jpeg", "application/pdf"]:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Uploaded file is not a valid JPEG image",
         )
+    return str(kind.mime)
+
+
+def check_file_size(file: UploadFile) -> None:
+    limit = 5 * 1024 * 1024
+    size = file.size or 0
+    if size > limit:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="File size exceeds the 5MB limit",
+        )
+
+
+@app.post("/upload")
+def upload_file(
+    request: Request,
+    file: UploadFile,
+    user: Annotated[dict | None, Depends(current_user)],
+    is_secret: bool = False,
+) -> Any:
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Unauthorized"
+        )
+    check_file_size(file)
+    mime = get_mime_of_file(file)
 
     name = uuid.uuid4()
     with open(f"uploads/{name}", "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    file_database.append(
-        {"id": len(file_database) + 1, "name": name, "src_name": file.filename}
-    )
-    return {"message": "File uploaded successfully"}
-
-
-@app.post("/upload-big-file")
-def upload_big_file(request: Request, file: UploadFile) -> Any:
-    limit = 1024 * 1024 * 1024  # 1GB
-    # if file.size > limit:
-    #     raise HTTPException(
-    #         status_code=status.HTTP_400_BAD_REQUEST,
-    #         detail="File size exceeds the 1GB limit",
-    #     )
-
-    cur_size = 0
-    chunk_size = 1024  # 1KB
-    name = uuid.uuid4()
-    with open(f"uploads/{name}", "wb") as f:
-        while True:
-            chunk = file.file.read(chunk_size)
-            if not chunk:
-                break
-            cur_size += len(chunk)
-            if cur_size > limit:
-                os.remove(f"uploads/{name}")
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="File size exceeds the 1GB limit",
-                )
-            f.write(chunk)
-
-    file_database.append(
-        {"id": len(file_database) + 1, "name": name, "src_name": file.filename}
+        data = file.file.read()
+        if is_secret:
+            data = Fernet(os.getenv("FERNET_KEY", "").encode()).encrypt(data)
+        f.write(data)
+    files.append(
+        {
+            "id": len(files) + 1,
+            "name": name,
+            "src_name": file.filename or "",
+            "owner": user["username"],
+            "is_secret": is_secret,
+            "mime": mime,
+        }
     )
     return {"message": "File uploaded successfully"}
