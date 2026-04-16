@@ -2,6 +2,7 @@ import os
 import uuid
 from io import BytesIO
 from typing import Annotated, Any
+from urllib.parse import quote
 
 import bleach
 import filetype  # type: ignore
@@ -165,7 +166,7 @@ def get_file_safe(
                 content=BytesIO(data),
                 status_code=status.HTTP_200_OK,
                 headers={
-                    "Content-Disposition": f"attachment; filename={file['src_name']}"
+                    "Content-Disposition": f"attachment; filename*=UTF-8''{quote(str(file['src_name']))}"
                 },
                 media_type=str(file["mime"]),
             )
@@ -180,6 +181,7 @@ def get_mime_of_file(file: UploadFile) -> str:
         file.filename
         and not file.filename.lower().endswith(".jpg")
         and not file.filename.lower().endswith(".jpeg")
+        and not file.filename.lower().endswith(".pdf")
     ):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
