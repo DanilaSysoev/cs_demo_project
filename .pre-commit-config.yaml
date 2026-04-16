@@ -34,6 +34,8 @@ repos:
           "bleach==6.3.0",
           "types-bleach==6.3.0.20251115",
           "filetype==1.0.7",
+          "aiofiles==25.1.0",
+          "types-cryptography==3.3.23.2",
         ]
 
   - repo: https://github.com/pypa/pip-audit
