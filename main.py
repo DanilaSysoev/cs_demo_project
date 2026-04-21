@@ -64,7 +64,7 @@ async def add_security_headers(request: Request, call_next: Any) -> Any:
         "default-src 'self' https://cdn.jsdelivr.net; ",
         "script-src 'self' https://cdn.jsdelivr.net 'sha256-QOOQu4W1oxGqd2nbXbxiA1Di6OHQOLQD+o+G9oWL8YY='; ",
         "style-src 'self' https://cdn.jsdelivr.net; ",
-        "img-src 'self' https://fastapi.tiangolo.com data:; ",
+        "img-src 'self' https://fastapi.tiangolo.com data:",
     )
 
     response.headers["Content-Security-Policy"] = "".join(policy)
@@ -100,7 +100,7 @@ def drop_session(request: Request) -> Any:
 
 @app.get("/")
 def index(request: Request, name: str = "Guest") -> Any:
-    csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
+    csp = "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
 
     clear_name = bleach.clean(
         name,
@@ -118,7 +118,7 @@ def index(request: Request, name: str = "Guest") -> Any:
 
 @app.get("/unsafe")
 def index_unsafe(request: Request, name: str = "Guest") -> Any:
-    csp = "default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:;"
+    csp = "default-src 'self' https://cdn.jsdelivr.net; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' https://cdn.jsdelivr.net; img-src 'self' data:"
 
     return templates.TemplateResponse(
         request,
