@@ -1,0 +1,12 @@
+.git
+.env
+.venv
+venv
+__pycache__
+*.pyc
+uploads
+Dockerfile
+docker-compose.yml
+.vscode
+.mypy_cache
+.ruff_cache
