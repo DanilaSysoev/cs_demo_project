@@ -6,6 +6,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Run Bandit
-        uses: PyCA/bandit-action@v1.9.4
+        uses: PyCQA/bandit-action@v1
         with:
           args: "./*.py -ll"
