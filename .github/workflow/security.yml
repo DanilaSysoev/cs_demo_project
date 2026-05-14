@@ -1,0 +1,11 @@
+name: Security Chech
+on: [push]
+jobs:
+  bandit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run Bandit
+        uses: PyCA/bandit-action@v1.9.4
+        with:
+          args: "./*.py -ll"

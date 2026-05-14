@@ -29,7 +29,6 @@ app.add_middleware(
     https_only=True,
 )
 
-
 users = [
     {"username": "admin", "role": "admin"},
     {"username": "Danila", "role": "user"},
@@ -40,7 +39,7 @@ users = [
 files = [
     {
         "id": 1,
-        "local_name": "file1.txt",
+        "name": "file1.txt",
         "src_name": "file1.txt",
         "owner": "Danila",
         "mime": "plain/text",
@@ -48,7 +47,7 @@ files = [
     },
     {
         "id": 2,
-        "local_name": "file2.txt",
+        "name": "file2.txt",
         "src_name": "file2.txt",
         "owner": "Alice",
         "mime": "plain/text",
@@ -69,6 +68,36 @@ async def add_security_headers(request: Request, call_next: Any) -> Any:
 
     response.headers["Content-Security-Policy"] = "".join(policy)
     return response
+
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next: Any) -> Any:
+    from logger_config import logger
+
+    logger.info(
+        f"Incoming request: {request.method} {request.url} {request.client.host}"  # type: ignore
+    )
+    response: Response = await call_next(request)
+    logger.info(f"Response status: {response.status_code}")
+    return response
+
+
+# @app.exception_handler(FileNotFoundError)
+# async def file_not_found_exception_handler(request: Request, exc: FileNotFoundError) -> Any:
+#     from logger_config import logger
+#     logger.error(f"File not found error: {exc}")
+#     return Response(content="File not found", status_code=status.HTTP_404_NOT_FOUND)
+
+
+@app.middleware("http")
+async def handle_exceptions(request: Request, call_next: Any) -> Any:
+    from logger_config import logger
+
+    try:
+        return await call_next(request)
+    except Exception as exc:
+        logger.error(f"Unexpected error: {exc}")
+        return Response(content="Internal Server Error", status_code=500)
 
 
 @app.post("/set-session")
@@ -156,6 +185,11 @@ def get_file_safe(
         )
 
     if user["role"] == "admin" or file["owner"] == user["username"]:
+        # if not os.path.exists(f"uploads/{file['name']}"):
+        #     raise HTTPException(
+        #         status_code=status.HTTP_404_NOT_FOUND, detail="File not found"
+        #     )
+
         with open(f"uploads/{file['name']}", "rb") as f:
             data = f.read()
             if file["is_secret"]:
