@@ -1,11 +1,34 @@
-name: Security Chech
-on: [push]
+name: Bandit Security Scan
+
+# Запускать workflow при каждом push
+on:
+  push:
+    branches:
+      - main
+      - master
+      # Раскомментируйте следующие строки, если хотите запускать и на Pull Requests
+      # - pull_request
+
 jobs:
   bandit:
+    name: Run Bandit
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v2
-      - name: Run Bandit
-        uses: PyCQA/bandit-action@v1
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          args: "./*.py -ll"
+          python-version: '3.12' # Укажите версию Python, актуальную для вашего проекта
+          cache: 'pip'           # Кэширование пакетов для ускорения сборки
+
+      - name: Install Bandit
+        run: |
+          python -m pip install --upgrade pip
+          pip install bandit
+
+      - name: Run Bandit Scan
+        # Запускаем рекурсивно (-r) по всей текущей директории (.)
+        run: bandit -r . -ll
